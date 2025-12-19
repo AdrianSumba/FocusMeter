@@ -1,0 +1,3 @@
+# Requiere Python 3.10
+# Requerimientos para interfaz web
+streamlit
