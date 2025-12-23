@@ -1,6 +1,5 @@
 import cv2
 import time
-import threading
 from ultralytics import YOLO
 
 MODEL_PATH = "servicio/modelo_atencion_preentrenado.pt"
@@ -16,7 +15,6 @@ ultimo_nivel = 0.0
 
 def ejecutar_modelo():
     global ultimo_frame, ultimo_nivel
-
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -28,7 +26,6 @@ def ejecutar_modelo():
 
         atentos = 0
         total = len(boxes)
-
         for box in boxes:
             cls_id = int(box.cls[0])
             etiqueta = class_names[cls_id].lower()
@@ -37,7 +34,4 @@ def ejecutar_modelo():
 
         ultimo_nivel = atentos / total if total > 0 else 0
         ultimo_frame = frame
-
         time.sleep(0.03)
-
-threading.Thread(target=ejecutar_modelo, daemon=True).start()
