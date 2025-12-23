@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from mongo import get_mongo_client
+from db.mongo import get_mongo_client
 from sklearn.linear_model import LinearRegression
 
 # =============================

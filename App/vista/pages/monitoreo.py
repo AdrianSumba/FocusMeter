@@ -14,7 +14,7 @@ st.markdown(
 # =============================
 # CONFIGURACIÓN
 # =============================
-MODEL_PATH = "models/best.pt"
+MODEL_PATH = "servicio/models/best.pt"
 CAMERA_INDEX = 0
 
 # =============================

@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 # ===== LOGO CENTRADO =====
-logo = Image.open("assets/LOGO-RECTANGULAR_SIN-FONDO.png")
+logo = Image.open("vista/assets/LOGO-RECTANGULAR_SIN-FONDO.png")
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
@@ -54,7 +54,7 @@ st.write("Ing. Lorena Calle")
 
 
 # ===== CONEXIÓN A MONGODB =====
-from mongo import get_mongo_client
+from App.db.mongo import get_mongo_client
 
 st.markdown("---")
 st.subheader("🗄️ Estado de la Base de Datos")

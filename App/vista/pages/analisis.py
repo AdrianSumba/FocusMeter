@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from mongo import get_mongo_client
+from db.mongo import get_mongo_client
 
 # =============================
 # CONFIGURACIÓN DE PÁGINA

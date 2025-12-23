@@ -1,19 +1,26 @@
-import streamlit as st
+import subprocess
+import sys
+import signal
+import time
 
-st.set_page_config(
-    page_title="Sistema de Atención Estudiantil",
-    layout="wide"
+children = []
+
+def shutdown(sig, frame):
+    for p in children:
+        p.terminate()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, shutdown)
+signal.signal(signal.SIGTERM, shutdown)
+
+children.append(
+    subprocess.Popen([sys.executable, "app_servicio.py"])
 )
 
-pg = st.navigation([
-    st.Page("pages/home.py", title="🏠 Home"),
-    st.Page("pages/monitoreo.py", title="📹 Monitoreo"),
-    st.Page("pages/analisis.py", title="📊 Análisis"),
-    st.Page("pages/tendencias.py", title="📈 Tendencias"),
-    st.Page("pages/proyecciones.py", title="🔮 Proyecciones"),
-    st.Page("pages/metodologia.py", title="📚 Metodología"),
-])
+children.append(
+    subprocess.Popen([sys.executable, "-m", "streamlit", "run", "app_vista.py"])
+)
 
-pg.run()
-
+while True:
+    time.sleep(1)
 
