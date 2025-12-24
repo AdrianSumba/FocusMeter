@@ -2,6 +2,7 @@ import cv2
 from ultralytics import YOLO
 
 
+
 ultimo_frame = None
 ultimo_nivel = 0.0
 
@@ -12,10 +13,12 @@ def ejecutar_modelo():
     MODEL_PATH = "servicio/modelo_atencion_preentrenado.pt"
     CAMERA_INDEX = 0
 
+    rtsp_url = "rtsp://admin:Novat3ch@192.168.1.5:554/Streaming/Channels/101"
     model = YOLO(MODEL_PATH)
     class_names = model.names
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
+    #cap = cv2.VideoCapture(rtsp_url)
     if not cap.isOpened():
         print('\n No se puede abril la camara, se debe reiniciar el servicio.')
         return
