@@ -1,27 +1,45 @@
 import cv2
+import time
 from ultralytics import YOLO
-
 
 
 ultimo_frame = None
 ultimo_nivel = 0.0
 
 
+def obtener_camara():
+    CAMERA_INDEX = 0
+    rtsp_url = "rtsp://admin:Novat3ch@192.168.1.5:554/Streaming/Channels/101"
+
+    while True:
+        cap = cv2.VideoCapture(rtsp_url)
+        if cap.isOpened():
+            ret, _ = cap.read()
+            if ret:
+                print("Cámara RTSP conectada")
+                return cap
+            cap.release()
+
+        cap = cv2.VideoCapture(CAMERA_INDEX)
+        if cap.isOpened():
+            ret, _ = cap.read()
+            if ret:
+                print("Cámara local conectada")
+                return cap
+            cap.release()
+
+        print("Cámara no disponible")
+        time.sleep(2)
+
+
 def ejecutar_modelo():
     global ultimo_frame, ultimo_nivel
-    
     MODEL_PATH = "servicio/modelo_atencion_preentrenado.pt"
-    CAMERA_INDEX = 0
 
-    rtsp_url = "rtsp://admin:Novat3ch@192.168.1.5:554/Streaming/Channels/101"
+    cap = obtener_camara()
+
     model = YOLO(MODEL_PATH)
     class_names = model.names
-
-    cap = cv2.VideoCapture(CAMERA_INDEX)
-    #cap = cv2.VideoCapture(rtsp_url)
-    if not cap.isOpened():
-        print('\n No se puede abril la camara, se debe reiniciar el servicio.')
-        return
 
     while cap.isOpened():
         ret, frame = cap.read()
