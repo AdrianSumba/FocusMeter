@@ -10,3 +10,4 @@ seaborn
 pymongo
 uvicorn
 fastapi
+pyserial
