@@ -7,34 +7,141 @@ from sklearn.linear_model import LinearRegression
 # =============================
 # CONFIGURACIÓN
 # =============================
+st.set_page_config(page_title="Proyección de Atención", layout="wide")
+
 st.title("🔮 Proyecciones del Nivel de Atención Estudiantil")
 
 st.markdown(
     """
     En esta sección se presentan proyecciones del nivel de atención estudiantil
     a partir de los registros históricos capturados por el sistema, utilizando
-    modelos estadísticos simples para estimar el comportamiento futuro.
+    un modelo de regresión lineal simple para estimar el comportamiento futuro.
     """
 )
 
-# =============================
-# OBTENER DATOS (REUTILIZA CONEXIÓN)
-# =============================
-client = get_mongo_client()   # conexión cacheada
-db = client["Base"]
-coleccion = db["registros_atencion"]
+st.divider()
 
-data = list(coleccion.find({}, {"_id": 0}))
+# =============================
+# CONEXIÓN A MONGODB
+# =============================
+try:
+    client = get_mongo_client(modo="atlas")
+    db = client["FocusMeter"]
+except Exception as e:
+    st.error("❌ Error al conectar con MongoDB")
+    st.exception(e)
+    st.stop()
+
+# =============================
+# PIPELINE DE AGREGACIÓN (MISMA LÓGICA QUE ANÁLISIS)
+# =============================
+pipeline = [
+    {
+        "$lookup": {
+            "from": "horarios",
+            "let": {"id_h": "$id_horario"},
+            "pipeline": [
+                {
+                    "$match": {
+                        "$expr": {
+                            "$eq": ["$_id", {"$toObjectId": "$$id_h"}]
+                        }
+                    }
+                }
+            ],
+            "as": "horario"
+        }
+    },
+    {"$unwind": "$horario"},
+
+    {
+        "$lookup": {
+            "from": "asignaturas",
+            "let": {"id_asig": "$horario.id_asignatura"},
+            "pipeline": [
+                {
+                    "$match": {
+                        "$expr": {
+                            "$eq": ["$_id", {"$toObjectId": "$$id_asig"}]
+                        }
+                    }
+                }
+            ],
+            "as": "asignatura"
+        }
+    },
+    {"$unwind": "$asignatura"},
+
+    {
+        "$lookup": {
+            "from": "carreras",
+            "let": {"id_car": "$asignatura.id_carrera"},
+            "pipeline": [
+                {
+                    "$match": {
+                        "$expr": {
+                            "$eq": ["$_id", {"$toObjectId": "$$id_car"}]
+                        }
+                    }
+                }
+            ],
+            "as": "carrera"
+        }
+    },
+    {"$unwind": "$carrera"},
+
+    {
+        "$project": {
+            "_id": 0,
+            "fecha_deteccion": 1,
+            "hora_deteccion": 1,
+            "porcentaje_estimado_atencion": 1,
+            "nombre_asignatura": "$asignatura.nombre_asignatura",
+            "nombre_carrera": {
+                "$ifNull": ["$carrera.nombre_carrera", "$carrera.nombre"]
+            }
+        }
+    }
+]
+
+# =============================
+# OBTENER DATOS
+# =============================
+data = list(db["registros_atencion"].aggregate(pipeline))
 
 if len(data) < 10:
     st.warning("⚠️ No existen suficientes registros para generar proyecciones confiables.")
     st.stop()
 
 df = pd.DataFrame(data)
-df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+# =============================
+# CONSTRUCCIÓN DE TIMESTAMP REAL
+# =============================
+df["fecha_deteccion"] = pd.to_datetime(df["fecha_deteccion"])
+df["hora_deteccion"] = pd.to_datetime(df["hora_deteccion"], format="%H:%M:%S").dt.time
+
+df["timestamp"] = df.apply(
+    lambda row: pd.Timestamp.combine(row["fecha_deteccion"], row["hora_deteccion"]),
+    axis=1
+)
+
 df = df.sort_values("timestamp")
 
 st.divider()
+
+# =============================
+# FILTROS OPCIONALES
+# =============================
+st.subheader("🎛️ Filtros")
+
+carrera_sel = st.selectbox(
+    "Seleccionar carrera",
+    ["Todas"] + sorted(df["nombre_carrera"].unique().tolist())
+)
+
+if carrera_sel != "Todas":
+    df = df[df["nombre_carrera"] == carrera_sel]
 
 # =============================
 # PREPARACIÓN DE DATOS
@@ -42,7 +149,7 @@ st.divider()
 df["tiempo"] = (df["timestamp"] - df["timestamp"].min()).dt.total_seconds()
 
 X = df[["tiempo"]]
-y = df["nivel_atencion"]
+y = df["porcentaje_estimado_atencion"]
 
 # =============================
 # ENTRENAMIENTO DEL MODELO
@@ -75,7 +182,7 @@ df_futuro = pd.DataFrame({
         periods=len(predicciones),
         freq="1min"
     ),
-    "nivel_atencion": predicciones
+    "porcentaje_estimado_atencion": predicciones
 })
 
 st.divider()
@@ -86,7 +193,7 @@ st.divider()
 st.subheader("📉 Proyección del Nivel de Atención")
 
 df_plot = pd.concat([
-    df[["timestamp", "nivel_atencion"]],
+    df[["timestamp", "porcentaje_estimado_atencion"]],
     df_futuro
 ])
 
@@ -114,11 +221,11 @@ st.write(
     - Tendencia estimada: **{'creciente' if modelo.coef_[0] > 0 else 'decreciente'}**
     - Pendiente del modelo: **{modelo.coef_[0]:.6f}**
     - Nivel de atención esperado al final del horizonte:
-      **{predicciones[-1]:.2f}**
+      **{predicciones[-1]:.2f}%**
     """
 )
 
 st.info(
-    "Estas proyecciones tienen un carácter orientativo y dependen de la calidad y cantidad "
-    "de los datos históricos disponibles."
+    "Estas proyecciones tienen un carácter orientativo y dependen de la cantidad, "
+    "frecuencia y estabilidad de los datos históricos disponibles."
 )

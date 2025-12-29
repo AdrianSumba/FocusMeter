@@ -60,8 +60,8 @@ st.markdown("---")
 st.subheader("🗄️ Estado de la Base de Datos")
 
 try:
-    client = get_mongo_client()
-    db = client["Base"]
+    client = get_mongo_client(modo="atlas")
+    db = client["FocusMeter"]
     coleccion = db["registros_atencion"]
 
     total = coleccion.count_documents({})

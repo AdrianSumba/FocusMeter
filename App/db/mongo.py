@@ -1,21 +1,21 @@
 from pymongo import MongoClient
 from db.modelo import RegistroAtencion
 
-
 def get_mongo_client(modo="atlas"):
     if modo == "local":
         uri = "mongodb://localhost:27017"
     elif modo == "atlas":
         uri = (
             "mongodb+srv://Adrian_bd:Administrador31.@base.f1r4j33.mongodb.net/"
-            "Base?retryWrites=true&w=majority"
+            "FocusMeter?retryWrites=true&w=majority&appName=Base"
         )
     else:
         raise ValueError("modo debe ser 'local' o 'atlas'")
 
     client = MongoClient(uri, serverSelectionTimeoutMS=3000)
-    client.admin.command("ping")
+    client.admin.command("ping")  # Verifica conexión
     return client
+
 
 # --------------------------------------- INSERTS ---------------------------------------
 def insertar_registro_atencion(registro_atencion: RegistroAtencion):
