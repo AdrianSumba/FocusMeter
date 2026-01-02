@@ -87,7 +87,7 @@ void setup() {
   setLuzAmarilla(1);
   setLuzRoja(1);
 
-  delay(2000);
+  delay(5000);
 
   apagarLeds();
 }
@@ -149,9 +149,9 @@ void loop() {
   if (datoValido && (ahora - ultimoDatoMillis > TIMEOUT_MS)) {
     apagarLeds();
     lcd.setCursor(0, 0);
-    lcd.print("Sin conexion!   ");
+    lcd.print("FOCUS METER: ");
     lcd.setCursor(0, 1);
-    lcd.print("                ");
+    lcd.print("Sin datos...");
     datoValido = false;
     nivelAtencionAnterior = -1;
   }
