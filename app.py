@@ -1,70 +1,111 @@
 import streamlit as st
 import cv2
+import threading
 from ultralytics import YOLO
-
-st.title("📹 Monitoreo en Servidor Ubuntu")
-
-# =============================
-# LÓGICA DE DETECCIÓN LINUX
-# =============================
-def encontrar_camara_linux():
-    # Probamos los dispositivos detectados en tu comando ls: 2 y 0
-    # Usamos CAP_V4L2 que es el driver nativo de Linux
-    for index in [2, 0]: 
-        cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
-        if cap.isOpened():
-            ret, frame = cap.read()
-            if ret:
-                return cap, index
-            cap.release()
-    return None, None
+import time
 
 # =============================
-# CARGAR MODELO
+# CONFIGURACIÓN Y ESTADO GLOBAL
 # =============================
+MODEL_PATH = "app/extras/best.pt"
+
+# Clase para gestionar la cámara en un hilo separado
+class VideoCaptureThread:
+    def __init__(self, index):
+        self.cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
+        self.model = YOLO(MODEL_PATH)
+        self.frame = None
+        self.nivel_atencion = 0
+        self.running = True
+        self.lock = threading.Lock() # Para evitar conflictos de lectura/escritura
+
+    def start(self):
+        threading.Thread(target=self.update, args=(), daemon=True).start()
+
+    def update(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if not ret:
+                break
+
+            # Inferencia YOLO en el hilo
+            results = self.model(frame, conf=0.5, verbose=False)
+            annotated_frame = results[0].plot()
+
+            # Cálculo de lógica de atención
+            atentos = 0
+            boxes = results[0].boxes
+            total = len(boxes)
+            for box in boxes:
+                if self.model.names[int(box.cls[0])].lower() in ["atento", "attentive"]:
+                    atentos += 1
+            
+            # Actualizar variables compartidas de forma segura
+            with self.lock:
+                self.frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+                self.nivel_atencion = atentos / total if total > 0 else 0
+
+    def stop(self):
+        self.running = False
+        self.cap.release()
+
+# =============================
+# SINGLETON PARA EL HILO
+# =============================
+# Usamos cache_resource para que el hilo no se reinicie al interactuar con la web
 @st.cache_resource
-def load_model():
-    return YOLO("app/extras/best.pt")
-
-model = load_model()
+def get_video_thread():
+    # Probamos índice 2 (USB) o 0 (Integrada)
+    for idx in [2, 0]:
+        test_cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+        if test_cap.isOpened():
+            test_cap.release()
+            thread = VideoCaptureThread(idx)
+            thread.start()
+            return thread
+    return None
 
 # =============================
-# INTERFAZ Y CONTROL
+# INTERFAZ STREAMLIT (VISTA)
 # =============================
-col1, col2 = st.columns(2)
-start = col1.button("▶️ Iniciar")
-stop = col2.button("⏹️ Detener")
+st.set_page_config(page_title="Monitor de Atención", layout="wide")
+st.title("📹 Monitoreo en Tiempo Real (Procesamiento Independiente)")
 
-frame_window = st.image([])
-status_text = st.empty()
+video_thread = get_video_thread()
 
-if start:
-    cap, idx = encontrar_camara_linux()
-    
-    if cap is None:
-        st.error("❌ No se pudo abrir /dev/video0 ni /dev/video2. Revisa los permisos.")
-        st.code("Ejecuta: sudo usermod -aG video $USER (y reinicia sesión)")
-        st.stop()
-    
-    status_text.success(f"🎥 Conectado a: /dev/video{idx}")
+if video_thread is None:
+    st.error("❌ No se pudo inicializar ninguna cámara en el servidor.")
+    st.stop()
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+# Layout de la vista
+col_vid, col_stats = st.columns([3, 1])
 
-        # Inferencia rápida
-        results = model(frame, conf=0.5, verbose=False)
-        
-        # Dibujar resultados automáticamente
-        annotated_frame = results[0].plot()
+with col_vid:
+    image_placeholder = st.empty()
 
-        # Mostrar en Streamlit
-        frame_rgb = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        frame_window.image(frame_rgb)
+with col_stats:
+    st.subheader("Estadísticas")
+    semaforo = st.empty()
+    st.info("El modelo está corriendo permanentemente en el servidor.")
 
-        if stop:
-            break
+# Bucle de la Vista (Streamlit)
+while True:
+    # Leer datos del hilo sin bloquearlo
+    with video_thread.lock:
+        current_frame = video_thread.frame
+        nivel = video_thread.nivel_atencion
 
-    cap.release()
-    status_text.info("⏹️ Monitoreo detenido.")
+    # Actualizar imagen si hay frame disponible
+    if current_frame is not None:
+        image_placeholder.image(current_frame, channels="RGB", use_container_width=True)
+
+    # Actualizar semáforo
+    if nivel >= 0.7:
+        semaforo.success(f"🟢 ALTA ({nivel:.0%})")
+    elif nivel >= 0.4:
+        semaforo.warning(f"🟡 MEDIA ({nivel:.0%})")
+    else:
+        semaforo.error(f"🔴 BAJA ({nivel:.0%})")
+
+    # Pequeña pausa para no saturar la CPU del navegador
+    time.sleep(0.03)
