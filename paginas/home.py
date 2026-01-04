@@ -1,23 +1,16 @@
 import streamlit as st
 from PIL import Image
 
-st.set_page_config(
-    page_title="Sistema de Atención Estudiantil",
-    layout="wide"
-)
-
 logo = Image.open("extras/logo_tec.png")
 
-col1, col2, col3 = st.columns([1, 2, 1])
+col1, col2, col3 = st.columns([1, 2, 1])  
 with col2:
     st.image(logo, width=450)
 
 st.markdown(
-    "<h1 style='text-align: center;'>🎓 Sistema de Monitoreo del Nivel de Atención Estudiantil</h1>",
+    "<h1 style='text-align: center;'>🎓 Focus Meter: Sistema de Monitoreo del Nivel de Atención Estudiantil</h1>",
     unsafe_allow_html=True
 )
-
-st.markdown("---")
 
 
 st.markdown(

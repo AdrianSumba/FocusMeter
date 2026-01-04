@@ -1,9 +1,6 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="Focus Meter Web",
-    layout="wide"
-)
+st.set_page_config(page_title="Focus Meter Web",)
 
 pg = st.navigation([
     st.Page("paginas/home.py", title="🏠 Home"),
