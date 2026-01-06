@@ -1,15 +1,6 @@
-# Python 3.10.19
-
-# Vista
-streamlit==1.52.2
-
-# Modelo
-opencv-python-headless==4.12.0.88
-ultralytics==8.3.240
-onnxruntime==1.23.2
-
-# BD
-pymongo==4.15.5
-
-# Semáforo
-pyserial==3.5
+fastapi
+uvicorn
+opencv-python-headless
+ultralytics
+pyserial
+numpy
