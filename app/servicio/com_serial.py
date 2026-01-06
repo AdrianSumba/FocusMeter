@@ -1,7 +1,7 @@
 import serial
 import time
 
-PUERTO = "/dev/ttyACM0"
+PUERTO = "COM6"
 BAUDIOS = 115200
 
 class SerialManager:
