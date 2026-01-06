@@ -7,6 +7,8 @@ from ultralytics import YOLO
 from servicio.camara import open_rtsp
 from servicio.estado_compartido import STATE
 from servicio.com_serial import SerialManager
+from bd.mongo import insertar_registro_atencion
+from bd.modelo import RegistroAtencion
 
 
 MODEL_PATH = "servicio/modelo/best.pt"
@@ -15,6 +17,8 @@ RTSP_READ_TIMEOUT = 2.0     # segundos
 RECONNECT_DELAY = 1.0
 MAX_FPS_DELAY = 0.03        # ~30 FPS
 CUDA_CLEAN_INTERVAL = 100   # frames
+
+ETIQUETAS_MODELO = ["Attentive", "Distracted", "Sleepy", "bullying", "daydreaming", "hand_rising", "human", "phone_use"]
 
 
 def safe_rtsp_read(cap, timeout=RTSP_READ_TIMEOUT):
@@ -78,6 +82,7 @@ def start_model_loop():
             total = len(boxes)
             atencion_acumulada = 0
 
+            etiquetas_detectadas = []
             for box in boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 cls = int(box.cls[0])
@@ -99,6 +104,8 @@ def start_model_loop():
                     color,
                     2,
                 )
+
+                etiquetas_detectadas.add("")
 
             estimacion = (atencion_acumulada / total) if total else 0
 
@@ -149,3 +156,18 @@ def start_model_loop():
 
             cap = None
             time.sleep(1)
+        
+        try:
+
+            registro = {
+                "num_estudiantes_detectados": total,
+                "porcentaje_estimado_atencion": estimacion,
+                "porcentajes_etiquetas": registro.porcentajes_etiquetas,
+                "num_deteccion_etiquetas": registro.num_deteccion_etiquetas,
+                "fecha_deteccion": registro.fecha_deteccion,
+                "hora_detecccion": registro.hora_detecccion,
+                "id_horario": registro.id_horario
+            }
+            insertar_registro_atencion
+        except:
+            pass
