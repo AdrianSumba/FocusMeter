@@ -22,7 +22,8 @@ class SerialManager:
             return
 
         now = time.time()
-        if now - self.last_send >= 4:
+        
+        if now - self.last_send >= 60:
             try:
                 self.serial.write(f"<{value}>\n".encode())
                 self.last_send = now

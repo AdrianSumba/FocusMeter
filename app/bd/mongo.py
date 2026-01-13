@@ -21,6 +21,16 @@ def insertar_registro_atencion(registro):
 
 
 def get_info_horario_actual(id_aula):
+    info_horario = {
+        "aula": "",
+        "docente": "",
+        "materia": "",
+        "carrera": "",
+        "id_horario": "",
+        "hora_inicio": "",
+        "hora_fin": ""
+    }
+
     try:
         cliente = get_cliente_mongo()
         db = cliente[base]
@@ -39,15 +49,14 @@ def get_info_horario_actual(id_aula):
         hora_actual = ahora.time()
 
         dias_semana = {
-            0: "Lunes",
-            1: "Martes",
-            2: "Miercoles",
-            3: "Jueves",
-            4: "Viernes",
-            5: "Sabado",
-            6: "Domingo"
+            "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miercoles",
+            "Thursday": "Jueves", "Friday": "Viernes",
+            "Saturday": "Sabado", "Sunday": "Domingo"
         }
-        dia_actual_es = dias_semana[ahora.weekday()]
+
+        dia_actual_es = dias_semana.get(ahora.strftime("%A"))
+        if not dia_actual_es:
+            return None
 
         query = {
             "dia": dia_actual_es,
@@ -59,6 +68,7 @@ def get_info_horario_actual(id_aula):
         for horario in horarios_dia:
             hora_inicio = datetime.strptime(horario["hora_inicio"], "%H:%M").time()
             hora_fin = datetime.strptime(horario["hora_fin"], "%H:%M").time()
+
 
             if hora_inicio <= hora_actual < hora_fin:
                 asignatura = asignaturas.find_one(
@@ -74,23 +84,18 @@ def get_info_horario_actual(id_aula):
                     {"_id": ObjectId(asignatura["id_carrera"])}
                 )
 
-                return {
-                    "aula": aula["nombre_aula"],
-                    "docente": docente["nombre"] if docente else "",
-                    "materia": asignatura["nombre_asignatura"],
-                    "carrera": carrera["nombre_carrera"] if carrera else "",
-                    "id_horario": str(horario["_id"]),
-                    "hora_inicio": horario["hora_inicio"],
-                    "hora_fin": horario["hora_fin"]
-                }
+                info_horario["aula"] = aula["nombre_aula"]
+                info_horario["docente"] = docente["nombre"] if docente else ""
+                info_horario["materia"] = asignatura["nombre_asignatura"]
+                info_horario["carrera"] = carrera["nombre_carrera"] if carrera else ""
+                info_horario["id_horario"] = str(horario["_id"])
+                info_horario["hora_inicio"] = horario["hora_inicio"]
+                info_horario["hora_fin"] = horario["hora_fin"]
+
+                return info_horario
 
         return None
 
-    except Exception:
+    except Exception as e:
+        print(f"Ocurrió un error al consultar MongoDB: {e}")
         return None
-
-    finally:
-        try:
-            cliente.close()
-        except Exception:
-            pass

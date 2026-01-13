@@ -1,72 +1,82 @@
+import threading
 import time
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse, JSONResponse, Response
+import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from servicio.estado_compartido import STATE
 from servicio.monitoreo import start_model_loop
 
 
-app = FastAPI(title="FocusMeter Servicio", version="2.0")
+app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["*"] ,
     allow_headers=["*"],
 )
 
 
 @app.on_event("startup")
 def startup():
-    start_model_loop()
+    threading.Thread(target=start_model_loop, daemon=True).start()
 
 
-def mjpeg_generator():
-    last_sent_ts = 0.0
+def frame_generator():
+    ultimo_enviado = None
     while True:
-        with STATE.frame_cv:
-            STATE.frame_cv.wait_for(lambda: STATE.last_jpeg is not None and STATE.last_frame_ts != last_sent_ts, timeout=1.0)
-            jpeg = STATE.last_jpeg
-            ts = STATE.last_frame_ts
+        with STATE.lock:
+            jpeg_bytes = STATE.ultimo_jpeg
 
-        if jpeg is None:
+        if not jpeg_bytes or jpeg_bytes is ultimo_enviado:
             time.sleep(0.01)
             continue
 
-        last_sent_ts = ts
-        yield (b"--frame\r\n"
-               b"Content-Type: image/jpeg\r\n"
-               b"Content-Length: " + str(len(jpeg)).encode() + b"\r\n\r\n" +
-               jpeg + b"\r\n")
+        ultimo_enviado = jpeg_bytes
+
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" +
+            jpeg_bytes + b"\r\n"
+        )
+
+        time.sleep(0.005)
 
 
 @app.get("/stream")
 def stream():
     return StreamingResponse(
-        mjpeg_generator(),
+        frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        },
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
     )
-
-
-@app.get("/frame")
-def frame():
-    """Devuelve un frame único (snapshot) para clientes que no soportan MJPEG."""
-    with STATE.frame_lock:
-        jpeg = STATE.last_jpeg
-    if jpeg is None:
-        return Response(status_code=204)
-    return Response(content=jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/metrics")
 def metrics():
-    with STATE.metrics_lock:
-        data = dict(STATE.metrics)
-    return JSONResponse(content=data, headers={"Cache-Control": "no-cache"})
+    with STATE.lock:
+        data = (STATE.ultimas_metricas or STATE.metrics).copy()
+    return JSONResponse(content=data)
+
+
+@app.websocket("/ws/metrics")
+async def websocket_metricas(ws: WebSocket):
+    await ws.accept()
+    try:
+        ultimo_ts = 0.0
+        while True:
+            with STATE.lock:
+                ts = STATE.ts_ultima_actualizacion
+                data = (STATE.ultimas_metricas or STATE.metrics).copy()
+
+            if ts != ultimo_ts:
+                await ws.send_json(data)
+                ultimo_ts = ts
+
+            await asyncio.sleep(0.2)
+    except WebSocketDisconnect:
+        return

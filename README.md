@@ -1,4 +1,4 @@
-# PROYECTO FINAL CICLO 4: FOCUS METER
+#PROYECTO FINAL CICLO 4: FOCUS METER
 
 - Entorno python: focusmeterv2 con python 3.10.19
 

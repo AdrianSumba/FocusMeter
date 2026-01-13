@@ -1,44 +1,177 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Streaming en tiempo real - FocusMeter</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FocusMeter - Streaming y Métricas</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-  <div class="container">
-    <!-- MJPEG: un solo request persistente (fluido y liviano) -->
-    <img id="videoStream" src="http://localhost:8000/stream" alt="Cargando streaming..." />
-    <div id="status">Conectando al servidor...</div>
-  </div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">FM</div>
+      <div>
+        <div class="title">FocusMeter</div>
+        <div class="subtitle">Streaming optimizado + métricas en tiempo real</div>
+      </div>
+    </div>
+    <div id="estadoConexion" class="pill">Conectando...</div>
+  </header>
+
+  <main class="contenedor">
+    <!-- STREAMING -->
+    <section class="tarjeta" aria-label="Streaming">
+      <div class="tarjetaHeader">
+        <h2>Transmisión</h2>
+        <div class="hint">El modelo YOLO se visualiza con etiquetas y pesos (confianza).</div>
+      </div>
+      <div class="videoWrap">
+        <img id="videoStream" alt="Streaming" />
+      </div>
+    </section>
+
+    <!-- MÉTRICAS -->
+    <section class="tarjeta" aria-label="Métricas">
+      <div class="tarjetaHeader">
+        <h2>Métricas</h2>
+        <div class="hint">Actualización casi instantánea</div>
+      </div>
+
+      <div id="filaMetricas" class="filaMetricas"></div>
+
+      <div class="separador"></div>
+
+      <!-- SEMÁFORO -->
+      <div class="semaforoWrap">
+        <div class="semaforo">
+          <div id="luzRoja" class="luz rojo"></div>
+          <div id="luzAmarilla" class="luz amarillo"></div>
+          <div id="luzVerde" class="luz verde"></div>
+        </div>
+        <div class="semaforoTexto">
+          <div class="semaforoTitulo">Estimación de atención</div>
+          <div id="valorAtencion" class="semaforoValor">0%</div>
+          <div class="semaforoReglas">
+            <span class="badge rojo">&lt; 70</span>
+            <span class="badge amarillo">70–79.99</span>
+            <span class="badge verde">≥ 80</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <script>
+    // ======= Configuración =======
+    const URL_API = "http://localhost:8000";
+    const URL_STREAM = `${URL_API}/stream`;
+    const URL_WS_METRICAS = `ws://localhost:8000/ws/metrics`;
+
+    // ======= Streaming MJPEG =======
     const img = document.getElementById('videoStream');
-    const status = document.getElementById('status');
+    img.src = URL_STREAM;
 
-    function setOk(){
-      status.innerText = "Streaming activo";
-      status.style.color = "#00ff00";
+    // ======= UI helpers =======
+    const estadoConexion = document.getElementById('estadoConexion');
+    const filaMetricas = document.getElementById('filaMetricas');
+    const valorAtencion = document.getElementById('valorAtencion');
+    const luzRoja = document.getElementById('luzRoja');
+    const luzAmarilla = document.getElementById('luzAmarilla');
+    const luzVerde = document.getElementById('luzVerde');
+
+    function formatearValor(key, value) {
+      if (key === 'estimacion_atencion') {
+        const num = Number(value);
+        return `${Number.isFinite(num) ? num.toFixed(2) : value}%`;
+      }
+      return String(value ?? '');
     }
 
-    function setErr(){
-      status.innerText = "Sin conexión - reintentando...";
-      status.style.color = "#ff0000";
+    function actualizarSemaforo(atencion) {
+      const a = Number(atencion);
+      const val = Number.isFinite(a) ? a : 0;
+      valorAtencion.textContent = `${val.toFixed(2)}%`;
+
+      luzRoja.classList.remove('on');
+      luzAmarilla.classList.remove('on');
+      luzVerde.classList.remove('on');
+
+      if (val < 70) luzRoja.classList.add('on');
+      else if (val >= 70 && val < 80) luzAmarilla.classList.add('on');
+      else luzVerde.classList.add('on');
     }
 
-    // Cuando el navegador logra descargar el primer chunk, suele disparar load.
-    img.addEventListener("load", setOk);
+    function renderizarMetricas(metricas) {
+      const orden = [
+        'aula', 'docente', 'materia', 'carrera',
+        'hora_inicio', 'hora_fin',
+        'estudiantes_detectados', 'estimacion_atencion'
+      ];
 
-    // Reintento si falla.
-    img.addEventListener("error", () => {
-      setErr();
-      setTimeout(() => {
-        img.src = "http://localhost:8000/stream?t=" + Date.now();
-      }, 1000);
-    });
+      const keys = Object.keys(metricas || {});
+      const restantes = keys.filter(k => !orden.includes(k)).sort();
+      const lista = [...orden.filter(k => keys.includes(k)), ...restantes];
 
-    // Por defecto, al abrir la página: conectar.
-    setErr();
+      filaMetricas.innerHTML = '';
+      for (const k of lista) {
+        const card = document.createElement('div');
+        card.className = 'metricaCard';
+
+        const label = document.createElement('div');
+        label.className = 'metricaLabel';
+        label.textContent = k.replaceAll('_', ' ');
+
+        const value = document.createElement('div');
+        value.className = 'metricaValor';
+        value.textContent = formatearValor(k, metricas[k]);
+
+        card.appendChild(label);
+        card.appendChild(value);
+        filaMetricas.appendChild(card);
+      }
+
+      actualizarSemaforo(metricas?.estimacion_atencion ?? 0);
+    }
+
+    // ======= WebSocket de métricas =======
+    let ws;
+    let reintentos = 0;
+
+    function conectarWS() {
+      ws = new WebSocket(URL_WS_METRICAS);
+
+      ws.onopen = () => {
+        reintentos = 0;
+        estadoConexion.textContent = 'En vivo';
+        estadoConexion.classList.add('ok');
+        estadoConexion.classList.remove('bad');
+      };
+
+      ws.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          renderizarMetricas(data);
+        } catch (e) {
+          // Ignorar
+        }
+      };
+
+      ws.onclose = () => {
+        estadoConexion.textContent = 'Reconectando...';
+        estadoConexion.classList.remove('ok');
+        estadoConexion.classList.add('bad');
+        const espera = Math.min(2000 + reintentos * 500, 8000);
+        reintentos += 1;
+        setTimeout(conectarWS, espera);
+      };
+
+      ws.onerror = () => {
+        try { ws.close(); } catch (_) {}
+      };
+    }
+
+    conectarWS();
   </script>
 </body>
 </html>
