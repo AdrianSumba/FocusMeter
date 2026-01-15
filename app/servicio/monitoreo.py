@@ -34,7 +34,7 @@ PESOS_ATENCION = {
     "hand_rising": 1.0,
     "human": 0.5,
     "daydreaming": 0.3,
-    "distracted": 0.0,
+    "distracted": 0.1,
     "sleepy": 0.0,
     "bullying": 0.0,
     "phone_use": 0.0
@@ -186,7 +186,7 @@ def start_model_loop():
             # =======================
             # INFERENCIA
             # =======================
-            results = model(frame, conf=0.5, verbose=False)
+            results = model(frame, conf=0.25, verbose=False)
             boxes = results[0].boxes
 
             total_detectados = len(boxes)
@@ -231,9 +231,6 @@ def start_model_loop():
             # =======================
             # STATE
             # =======================
-            # =======================
-            # PREPARAR STREAM (fuera de lock para no bloquear /metrics)
-            # =======================
             frame_stream = cv2.resize(frame, STREAM_RES)
             ok_jpg, jpg = cv2.imencode(
                 ".jpg",
@@ -243,7 +240,7 @@ def start_model_loop():
             jpeg_bytes = jpg.tobytes() if ok_jpg else None
 
             # =======================
-            # STATE (lock lo más corto posible)
+            # STATE
             # =======================
             metricas_actuales = None
             with STATE.lock:
@@ -262,7 +259,7 @@ def start_model_loop():
             serial_mgr.send(estimacion_iap)
 
             # =======================
-            # INSERCIÓN + EVIDENCIA CADA MINUTO
+            # INSERCIÓN + EVIDENCIA
             # =======================
             if time.time() - start_time_interval >= 60:
                 timestamp = ahora_dt.strftime("%Y%m%d_%H%M%S")

@@ -1,21 +1,14 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-
-FRONTEND_URL = "http://localhost:5500/"
-
+st.title("🚦 Semáforo")
 
 components.html(
-    f"""
-    <script>
-      window.open('{FRONTEND_URL}', '_blank');
-    </script>
-    <div style="font-family: sans-serif; padding: 10px;">
-      <b>Abriendo transmisión...</b><br/>
-      Si tu navegador bloqueó el popup, abre manualmente: <a href="{FRONTEND_URL}" target="_blank">{FRONTEND_URL}</a>
-    </div>
+    """
+    <iframe
+        src="http://localhost:5500"
+        style="width:100%; height:92vh; border:none;">
+    </iframe>
     """,
-    height=90,
+    height=550
 )
-
-st.stop()

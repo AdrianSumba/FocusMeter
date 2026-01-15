@@ -1,7 +1,7 @@
 import serial
 import time
 
-PUERTO = "COM6"
+PUERTO = "COM8"
 BAUDIOS = 115200
 
 class SerialManager:
@@ -23,7 +23,7 @@ class SerialManager:
 
         now = time.time()
         
-        if now - self.last_send >= 60:
+        if now - self.last_send >= 2:
             try:
                 self.serial.write(f"<{value}>\n".encode())
                 self.last_send = now

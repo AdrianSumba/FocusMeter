@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 
 st.title("📊 Estadísticas")
 
-embed_url = "https://app.fabric.microsoft.com/view?r=eyJrIjoiMDFjODcxNTgtMzZiZC00YzdiLWJhNDgtOWI0MzdmM2JlMGYxIiwidCI6IjU5MzM1ZjViLWQ5MTUtNDBjNC1iOTM0LTcyOWZlYmU5Mjc3YSIsImMiOjEwfQ%3D%3D"
+embed_url = "https://app.powerbi.com/view?r=eyJrIjoiYzQxMjJiM2QtMmFjNi00ZWJlLWFiMDQtMThiNzgyZTYxZWY1IiwidCI6IjI1NzM5YzY1LWM3OWYtNDAxYy1iYWIwLWQ3NTVlOTBhNjY2MiIsImMiOjR9"
 
 components.html(
     f"""
