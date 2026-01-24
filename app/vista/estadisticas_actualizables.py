@@ -229,7 +229,8 @@ def _build_figures(registros):
     }
 
 
-carreras = _cargar_carreras()
+with st.spinner("Cargando estadísticas..."):
+    carreras = _cargar_carreras()
 
 left, right = st.columns([1, 1], gap="small")
 
@@ -246,8 +247,11 @@ carrera_id = None
 if seleccion != "Todas":
     carrera_id = next((c["id"] for c in carreras if c["nombre"] == seleccion), None)
 
-registros = _cargar_registros(carrera_id=carrera_id)
-figs = _build_figures(registros)
+with st.spinner("Cargando registros..."):
+    registros = _cargar_registros(carrera_id=carrera_id)
+
+with st.spinner("Generando figuras..."):
+    figs = _build_figures(registros)
 
 if not figs:
     st.info("No hay datos disponibles para mostrar.")

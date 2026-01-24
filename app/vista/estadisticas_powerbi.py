@@ -9,7 +9,8 @@ st.title("📊 Estadísticas")
 
 embed_url = "https://app.powerbi.com/view?r=eyJrIjoiYzQxMjJiM2QtMmFjNi00ZWJlLWFiMDQtMThiNzgyZTYxZWY1IiwidCI6IjI1NzM5YzY1LWM3OWYtNDAxYy1iYWIwLWQ3NTVlOTBhNjY2MiIsImMiOjR9"
 
-components.html(
+with st.spinner("Cargando reporte de Power BI..."):
+    components.html(
     f"""
     <iframe 
         title="Call Center Performance Report" 
@@ -21,4 +22,4 @@ components.html(
     </iframe>
     """,
     height=600,
-)
+    )

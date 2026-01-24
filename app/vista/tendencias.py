@@ -1,4 +1,3 @@
-# app/vista/tendencias.py
 import streamlit as st
 
 from bd import extras
@@ -78,7 +77,8 @@ def _cargar_df(carrera_id=None, fecha_desde=None, fecha_hasta=None):
     )
 
 
-carreras = _cargar_carreras()
+with st.spinner("Cargando tendencias..."):
+    carreras = _cargar_carreras()
 
 left, mid, right = st.columns([1, 1.2, 1.4], gap="small")
 
@@ -104,177 +104,179 @@ carrera_id = None
 if seleccion != "Todas":
     carrera_id = next((c["id"] for c in carreras if c["nombre"] == seleccion), None)
 
-df = _cargar_df(
-    carrera_id=carrera_id,
-    fecha_desde=str(desde),
-    fecha_hasta=str(hasta),
-)
+with st.spinner("Cargando registros..."):
+    df = _cargar_df(
+        carrera_id=carrera_id,
+        fecha_desde=str(desde),
+        fecha_hasta=str(hasta),
+    )
 
 if df.empty:
     st.info("No hay datos disponibles para mostrar en el rango seleccionado.")
     st.stop()
 
 
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+with st.spinner("Generando visualizaciones..."):
+    import pandas as pd
+    import plotly.express as px
+    import plotly.graph_objects as go
 
-promedio = float(df["porcentaje_estimado_atencion"].mean()) if len(df) else 0.0
-total_est = int(df["num_estudiantes_detectados"].sum()) if len(df) else 0
-total_reg = int(len(df))
+    promedio = float(df["porcentaje_estimado_atencion"].mean()) if len(df) else 0.0
+    total_est = int(df["num_estudiantes_detectados"].sum()) if len(df) else 0
+    total_reg = int(len(df))
 
 
-df_dia = (
-    df.groupby("dia_semana", dropna=False)["porcentaje_estimado_atencion"]
-      .mean()
-      .reset_index()
-      .sort_values("porcentaje_estimado_atencion", ascending=False)
-)
-mejor_dia = df_dia.iloc[0]["dia_semana"] if len(df_dia) else "—"
-
-k1, k2, k3, k4 = st.columns(4)
-with k1:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(promedio, 2)}</div><div class='kpi-lbl'>Promedio Atención</div></div>",
-        unsafe_allow_html=True,
+    df_dia = (
+        df.groupby("dia_semana", dropna=False)["porcentaje_estimado_atencion"]
+          .mean()
+          .reset_index()
+          .sort_values("porcentaje_estimado_atencion", ascending=False)
     )
-with k2:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{total_est}</div><div class='kpi-lbl'>Registros analizados por minuto</div></div>",
-        unsafe_allow_html=True,
+    mejor_dia = df_dia.iloc[0]["dia_semana"] if len(df_dia) else "—"
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(promedio, 2)}</div><div class='kpi-lbl'>Promedio Atención</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k2:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{total_est}</div><div class='kpi-lbl'>Registros analizados por minuto</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k3:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{total_reg}</div><div class='kpi-lbl'>Registros analizados</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{mejor_dia}</div><div class='kpi-lbl'>Mejor día (promedio)</div></div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+
+    df_ts = (
+        df.assign(fecha=pd.to_datetime(df["fecha"].astype(str), errors="coerce"))
+          .dropna(subset=["fecha"])
+          .groupby("fecha")["porcentaje_estimado_atencion"]
+          .mean()
+          .reset_index()
+          .sort_values("fecha")
     )
-with k3:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{total_reg}</div><div class='kpi-lbl'>Registros analizados</div></div>",
-        unsafe_allow_html=True,
+    fig_line = px.line(
+        df_ts,
+        x="fecha",
+        y="porcentaje_estimado_atencion",
+        labels={"fecha": "Fecha", "porcentaje_estimado_atencion": "Promedio de Atención"},
     )
-with k4:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{mejor_dia}</div><div class='kpi-lbl'>Mejor día (promedio)</div></div>",
-        unsafe_allow_html=True,
+    fig_line.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+
+
+    df_hora = (
+        df.groupby("hora")["porcentaje_estimado_atencion"]
+          .mean()
+          .reset_index()
+          .sort_values("hora")
+    )
+    fig_hora = px.line(
+        df_hora,
+        x="hora",
+        y="porcentaje_estimado_atencion",
+        markers=True,
+        labels={"hora": "Hora del día", "porcentaje_estimado_atencion": "Promedio de Atención"},
+    )
+    fig_hora.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+
+
+    fig_dia = px.bar(
+        df_dia.sort_values("dia_semana"),
+        x="dia_semana",
+        y="porcentaje_estimado_atencion",
+        labels={"dia_semana": "Día", "porcentaje_estimado_atencion": "Promedio de Atención"},
+    )
+    fig_dia.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+
+    piv = (
+        df.pivot_table(
+            index="hora",
+            columns="dia_semana",
+            values="porcentaje_estimado_atencion",
+            aggfunc="mean",
+        )
+        .reindex(columns=[c for c in ["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado","Domingo"] if c in df["dia_semana"].astype(str).unique()])
+        .sort_index()
     )
 
-st.divider()
-
-
-df_ts = (
-    df.assign(fecha=pd.to_datetime(df["fecha"].astype(str), errors="coerce"))
-      .dropna(subset=["fecha"])
-      .groupby("fecha")["porcentaje_estimado_atencion"]
-      .mean()
-      .reset_index()
-      .sort_values("fecha")
-)
-fig_line = px.line(
-    df_ts,
-    x="fecha",
-    y="porcentaje_estimado_atencion",
-    labels={"fecha": "Fecha", "porcentaje_estimado_atencion": "Promedio de Atención"},
-)
-fig_line.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
-
-
-df_hora = (
-    df.groupby("hora")["porcentaje_estimado_atencion"]
-      .mean()
-      .reset_index()
-      .sort_values("hora")
-)
-fig_hora = px.line(
-    df_hora,
-    x="hora",
-    y="porcentaje_estimado_atencion",
-    markers=True,
-    labels={"hora": "Hora del día", "porcentaje_estimado_atencion": "Promedio de Atención"},
-)
-fig_hora.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
-
-
-fig_dia = px.bar(
-    df_dia.sort_values("dia_semana"),
-    x="dia_semana",
-    y="porcentaje_estimado_atencion",
-    labels={"dia_semana": "Día", "porcentaje_estimado_atencion": "Promedio de Atención"},
-)
-fig_dia.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
-
-piv = (
-    df.pivot_table(
-        index="hora",
-        columns="dia_semana",
-        values="porcentaje_estimado_atencion",
-        aggfunc="mean",
+    fig_heat = go.Figure(
+        data=go.Heatmap(
+            z=piv.values if len(piv) else [],
+            x=list(piv.columns) if len(piv) else [],
+            y=list(piv.index) if len(piv) else [],
+            hovertemplate="Hora: %{y}<br>Día: %{x}<br>Promedio: %{z:.2f}<extra></extra>",
+        )
     )
-    .reindex(columns=[c for c in ["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado","Domingo"] if c in df["dia_semana"].astype(str).unique()])
-    .sort_index()
-)
+    fig_heat.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
 
-fig_heat = go.Figure(
-    data=go.Heatmap(
-        z=piv.values if len(piv) else [],
-        x=list(piv.columns) if len(piv) else [],
-        y=list(piv.index) if len(piv) else [],
-        hovertemplate="Hora: %{y}<br>Día: %{x}<br>Promedio: %{z:.2f}<extra></extra>",
+
+    df_asig = (
+        df.dropna(subset=["asignatura"])
+          .groupby("asignatura")["porcentaje_estimado_atencion"]
+          .mean()
+          .reset_index()
+          .sort_values("porcentaje_estimado_atencion", ascending=False)
+          .head(10)
     )
-)
-fig_heat.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+    fig_asig = px.bar(
+        df_asig,
+        x="asignatura",
+        y="porcentaje_estimado_atencion",
+        labels={"asignatura": "Asignatura", "porcentaje_estimado_atencion": "Promedio de Atención"},
+    )
+    fig_asig.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+    fig_asig.update_xaxes(tickangle=25)
 
 
-df_asig = (
-    df.dropna(subset=["asignatura"])
-      .groupby("asignatura")["porcentaje_estimado_atencion"]
-      .mean()
-      .reset_index()
-      .sort_values("porcentaje_estimado_atencion", ascending=False)
-      .head(10)
-)
-fig_asig = px.bar(
-    df_asig,
-    x="asignatura",
-    y="porcentaje_estimado_atencion",
-    labels={"asignatura": "Asignatura", "porcentaje_estimado_atencion": "Promedio de Atención"},
-)
-fig_asig.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
-fig_asig.update_xaxes(tickangle=25)
+    fig_sc = px.scatter(
+        df,
+        x="num_estudiantes_detectados",
+        y="porcentaje_estimado_atencion",
+        color="asignatura" if "asignatura" in df.columns else None,
+        labels={
+            "num_estudiantes_detectados": "Número de estudiantes",
+            "porcentaje_estimado_atencion": "Atención (%)",
+            "asignatura": "Asignatura",
+        },
+    )
+    fig_sc.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
 
 
-fig_sc = px.scatter(
-    df,
-    x="num_estudiantes_detectados",
-    y="porcentaje_estimado_atencion",
-    color="asignatura" if "asignatura" in df.columns else None,
-    labels={
-        "num_estudiantes_detectados": "Número de estudiantes",
-        "porcentaje_estimado_atencion": "Atención (%)",
-        "asignatura": "Asignatura",
-    },
-)
-fig_sc.update_layout(margin=dict(l=10, r=10, t=30, b=10), height=320)
+    row1a, row1b = st.columns([1.25, 1], gap="small")
+    with row1a:
+        st.subheader("📆 Tendencia diaria (promedio)")
+        st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
+    with row1b:
+        st.subheader("⏰ Tendencia por hora (promedio)")
+        st.plotly_chart(fig_hora, use_container_width=True, config={"displayModeBar": False})
 
+    row2a, row2b = st.columns([1, 1.25], gap="small")
+    with row2a:
+        st.subheader("📅 Patrón por día de la semana")
+        st.plotly_chart(fig_dia, use_container_width=True, config={"displayModeBar": False})
+    with row2b:
+        st.subheader("🔥 Mapa de calor (Día vs Hora)")
+        st.plotly_chart(fig_heat, use_container_width=True, config={"displayModeBar": False})
 
-row1a, row1b = st.columns([1.25, 1], gap="small")
-with row1a:
-    st.subheader("📆 Tendencia diaria (promedio)")
-    st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
-with row1b:
-    st.subheader("⏰ Tendencia por hora (promedio)")
-    st.plotly_chart(fig_hora, use_container_width=True, config={"displayModeBar": False})
+    row3a, row3b = st.columns([1.2, 1], gap="small")
+    with row3a:
+        st.subheader("📚 Top 10 asignaturas por atención promedio")
+        st.plotly_chart(fig_asig, use_container_width=True, config={"displayModeBar": False})
+    with row3b:
+        st.subheader("🎯 Aforo vs Atención")
+        st.plotly_chart(fig_sc, use_container_width=True, config={"displayModeBar": False})
 
-row2a, row2b = st.columns([1, 1.25], gap="small")
-with row2a:
-    st.subheader("📅 Patrón por día de la semana")
-    st.plotly_chart(fig_dia, use_container_width=True, config={"displayModeBar": False})
-with row2b:
-    st.subheader("🔥 Mapa de calor (Día vs Hora)")
-    st.plotly_chart(fig_heat, use_container_width=True, config={"displayModeBar": False})
-
-row3a, row3b = st.columns([1.2, 1], gap="small")
-with row3a:
-    st.subheader("📚 Top 10 asignaturas por atención promedio")
-    st.plotly_chart(fig_asig, use_container_width=True, config={"displayModeBar": False})
-with row3b:
-    st.subheader("🎯 Aforo vs Atención")
-    st.plotly_chart(fig_sc, use_container_width=True, config={"displayModeBar": False})
-
-with st.expander("Ver tabla (datos filtrados)", expanded=False):
-    st.dataframe(df, use_container_width=True)
+    with st.expander("Ver tabla (datos filtrados)", expanded=False):
+        st.dataframe(df, use_container_width=True)

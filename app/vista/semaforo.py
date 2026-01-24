@@ -3,7 +3,8 @@ import streamlit.components.v1 as components
 
 st.title("🚦 Semáforo")
 
-components.html(
+with st.spinner("Cargando Semáforo..."):
+    components.html(
     """
     <iframe
         src="http://localhost:5500"
@@ -11,4 +12,4 @@ components.html(
     </iframe>
     """,
     height=550
-)
+    )

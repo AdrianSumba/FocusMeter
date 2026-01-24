@@ -74,7 +74,8 @@ def _cargar_df(carrera_id=None, fecha_desde=None, fecha_hasta=None):
     )
 
 
-carreras = _cargar_carreras()
+with st.spinner("Cargando proyecciones..."):
+    carreras = _cargar_carreras()
 
 left, mid, right = st.columns([1, 1.2, 1.4], gap="small")
 
@@ -100,11 +101,12 @@ carrera_id = None
 if seleccion != "Todas":
     carrera_id = next((c["id"] for c in carreras if c["nombre"] == seleccion), None)
 
-df = _cargar_df(
-    carrera_id=carrera_id,
-    fecha_desde=str(desde),
-    fecha_hasta=str(hasta),
-)
+with st.spinner("Cargando registros..."):
+    df = _cargar_df(
+        carrera_id=carrera_id,
+        fecha_desde=str(desde),
+        fecha_hasta=str(hasta),
+    )
 
 if df.empty or len(df) < 8:
     st.warning("⚠️ No existen suficientes registros en el rango seleccionado para proyectar.")
@@ -154,83 +156,84 @@ else:
     steps = horizonte
     freq = "1D"
 
-y = s.values.astype(float)
-x = np.arange(len(y), dtype=float)
+with st.spinner("Calculando proyección..."):
+    y = s.values.astype(float)
+    x = np.arange(len(y), dtype=float)
 
-a, b = np.polyfit(x, y, 1)
-y_hat = a * x + b
+    a, b = np.polyfit(x, y, 1)
+    y_hat = a * x + b
 
-ss_res = float(np.sum((y - y_hat) ** 2))
-ss_tot = float(np.sum((y - np.mean(y)) ** 2))
-r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+    ss_res = float(np.sum((y - y_hat) ** 2))
+    ss_tot = float(np.sum((y - np.mean(y)) ** 2))
+    r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
 
-x_f = np.arange(len(y), len(y) + steps, dtype=float)
-y_f = a * x_f + b
+    x_f = np.arange(len(y), len(y) + steps, dtype=float)
+    y_f = a * x_f + b
 
-idx_last = s.index[-1]
-idx_fut = pd.date_range(start=idx_last, periods=steps + 1, freq=freq)[1:]
+    idx_last = s.index[-1]
+    idx_fut = pd.date_range(start=idx_last, periods=steps + 1, freq=freq)[1:]
 
-fig = go.Figure()
+    fig = go.Figure()
 
-fig.add_trace(
-    go.Scatter(
-        x=s.index,
-        y=y,
-        mode="lines+markers",
-        name="Histórico",
-        hovertemplate="%{x}<br>Atención: %{y:.2f}<extra></extra>",
-    )
-)
-
-fig.add_trace(
-    go.Scatter(
-        x=idx_fut,
-        y=y_f,
-        mode="lines+markers",
-        name="Proyección",
-        hovertemplate="%{x}<br>Proyección: %{y:.2f}<extra></extra>",
-    )
-)
-
-fig.update_layout(
-    height=360,
-    margin=dict(l=10, r=10, t=30, b=10),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    xaxis_title="Tiempo",
-    yaxis_title="Atención (%)",
-)
-
-ultimo_real = float(y[-1])
-ultimo_proy = float(y_f[-1]) if len(y_f) else ultimo_real
-tendencia = "creciente" if a > 0 else "decreciente"
-
-
-k1, k2, k3, k4 = st.columns(4)
-with k1:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(ultimo_real, 2)}</div><div class='kpi-lbl'>Último valor real</div></div>",
-        unsafe_allow_html=True,
-    )
-with k2:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(ultimo_proy, 2)}</div><div class='kpi-lbl'>Último valor proyectado</div></div>",
-        unsafe_allow_html=True,
-    )
-with k3:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{tendencia}</div><div class='kpi-lbl'>Tendencia estimada</div></div>",
-        unsafe_allow_html=True,
-    )
-with k4:
-    st.markdown(
-        f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(r2, 2)}</div><div class='kpi-lbl'>R² (ajuste lineal)</div></div>",
-        unsafe_allow_html=True,
+    fig.add_trace(
+        go.Scatter(
+            x=s.index,
+            y=y,
+            mode="lines+markers",
+            name="Histórico",
+            hovertemplate="%{x}<br>Atención: %{y:.2f}<extra></extra>",
+        )
     )
 
-st.divider()
+    fig.add_trace(
+        go.Scatter(
+            x=idx_fut,
+            y=y_f,
+            mode="lines+markers",
+            name="Proyección",
+            hovertemplate="%{x}<br>Proyección: %{y:.2f}<extra></extra>",
+        )
+    )
 
-st.subheader("📉 Proyección del nivel de atención")
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    fig.update_layout(
+        height=360,
+        margin=dict(l=10, r=10, t=30, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis_title="Tiempo",
+        yaxis_title="Atención (%)",
+    )
+
+    ultimo_real = float(y[-1])
+    ultimo_proy = float(y_f[-1]) if len(y_f) else ultimo_real
+    tendencia = "creciente" if a > 0 else "decreciente"
+
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(ultimo_real, 2)}</div><div class='kpi-lbl'>Último valor real</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k2:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(ultimo_proy, 2)}</div><div class='kpi-lbl'>Último valor proyectado</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k3:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{tendencia}</div><div class='kpi-lbl'>Tendencia estimada</div></div>",
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(
+            f"<div class='kpi-wrap'><div class='kpi-val'>{_fmt_num(r2, 2)}</div><div class='kpi-lbl'>R² (ajuste lineal)</div></div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+    st.subheader("📉 Proyección del nivel de atención")
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 st.caption(
     "La proyección se basa en una tendencia lineal simple sobre el histórico filtrado. "

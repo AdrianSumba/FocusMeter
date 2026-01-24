@@ -1,6 +1,5 @@
 import streamlit as st
 
-
 st.set_page_config(
     page_title="Focus Meter Web",
     layout="wide",
@@ -20,6 +19,64 @@ st.markdown(
       #MainMenu {visibility: hidden;}
       footer {visibility: hidden;}
       .block-container { padding-top: 1rem; }
+
+      /* ===== Sidebar: badge de sesión (compacto) ===== */
+      div[data-testid="stSidebar"] .session-pill{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap: .35rem;
+        padding: .50rem .60rem;
+        margin: .45rem 0 .30rem 0;
+        border-radius: .65rem;
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        color: rgba(15, 81, 50, 1);
+        font-weight: 650;
+        font-size: .92rem;
+      }
+
+      /* ===== Botón logout con look de item del menú =====
+         - Fondo transparente
+         - Sin borde
+         - Alineado a la izquierda
+         - Hover igual (suave)
+         - Altura similar a los items de navegación
+      */
+      div[data-testid="stSidebar"] div[data-testid="stButton"] > button{
+        width: 100% !important;
+        height: 40px !important;
+        padding: 0 .70rem !important;
+        border-radius: .55rem !important;
+
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+
+        text-align: left !important;
+        justify-content: flex-start !important;
+        gap: .45rem !important;
+
+        font-weight: 600 !important;
+        font-size: .95rem !important;
+        color: inherit !important;
+      }
+
+      /* Hover estilo menú */
+      div[data-testid="stSidebar"] div[data-testid="stButton"] > button:hover{
+        background: rgba(0,0,0,0.06) !important;
+      }
+
+      /* Active estilo menú */
+      div[data-testid="stSidebar"] div[data-testid="stButton"] > button:active{
+        background: rgba(0,0,0,0.10) !important;
+      }
+
+      /* Quitar padding extra del contenedor del botón en sidebar */
+      div[data-testid="stSidebar"] div[data-testid="stButton"]{
+        margin-top: .15rem !important;
+        margin-bottom: .15rem !important;
+      }
     </style>
     """,
     unsafe_allow_html=True
@@ -54,8 +111,10 @@ if not st.session_state.logged_in:
 
 
 with st.sidebar:
-    st.success("🟢 Sesión activa")
-    if st.button("🚪 Cerrar sesión", use_container_width=True):
+    st.markdown('<div class="session-pill">🟢 Sesión activa</div>', unsafe_allow_html=True)
+
+
+    if st.button("🚪 Cerrar sesión", key="logout_btn", use_container_width=True):
         logout()
 
 
