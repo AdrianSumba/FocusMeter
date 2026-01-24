@@ -62,6 +62,7 @@ with st.sidebar:
 pg = st.navigation(
     [
         st.Page("vista/home.py", title="🏠 Home"),
+        st.Page("vista/gestion_horarios.py", title="🗓️ Gestión Académica"),
         st.Page("vista/semaforo.py", title="🚦 Semáforo"),
         st.Page("vista/estadisticas_actualizables.py", title="📊 Estadísticas"),
         st.Page("vista/estadisticas_powerbi.py", title="📊 Estadísticas PowerBI"),
