@@ -1,23 +1,25 @@
-#include <LiquidCrystal.h>
+#include <Wire.h>
+#include <hd44780.h>
+#include <hd44780ioClass/hd44780_I2Cexp.h>
 
+const int ledVerde1 = 2;
+const int ledVerde2 = 3;
+const int ledVerde3 = 4;
+const int ledVerde4 = 5;
 
-const int ledVerde1 = A1;
-const int ledVerde2 = A3;
-const int ledVerde3 = A4;
-const int ledVerde4 = A5;
+const int ledAmarillo1 = 6;
+const int ledAmarillo2 = 7;
+const int ledAmarillo3 = 8;
+const int ledAmarillo4 = 9;
 
-const int ledAmarillo1 = A0;
-const int ledAmarillo2 = 6;
-const int ledAmarillo3 = 7;
-
-const int ledRojo1 = 8;
-const int ledRojo2 = 9;
-const int ledRojo3 = 10;
+const int ledRojo1 = 10;
+const int ledRojo2 = 11;
+const int ledRojo3 = 12;
 const int ledRojo4 = 13;
 
 const int alertaSonora = A2;
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+hd44780_I2Cexp lcd;
 
 const int ATENCION_BAJA  = 0;
 const int ATENCION_MEDIA = 1;
@@ -42,6 +44,7 @@ void setLuzAmarilla(int estado){
   digitalWrite(ledAmarillo1, estado);
   digitalWrite(ledAmarillo2, estado);
   digitalWrite(ledAmarillo3, estado);
+  digitalWrite(ledAmarillo4, estado);
 }
 
 
@@ -54,9 +57,9 @@ void setLuzRoja(int estado){
 
 
 void apagarLeds() {
-  setLuzVerde(0);
-  setLuzAmarilla(0);
-  setLuzRoja(0);
+  setLuzVerde(LOW);
+  setLuzAmarilla(LOW);
+  setLuzRoja(LOW);
 }
 
 
@@ -69,6 +72,7 @@ void setup() {
   pinMode(ledAmarillo1, OUTPUT);
   pinMode(ledAmarillo2, OUTPUT);
   pinMode(ledAmarillo3, OUTPUT);
+  pinMode(ledAmarillo4, OUTPUT);
 
   pinMode(ledRojo1, OUTPUT);
   pinMode(ledRojo2, OUTPUT);
@@ -77,22 +81,22 @@ void setup() {
 
   pinMode(alertaSonora, OUTPUT);
 
-  lcd.begin(16, 2);
   Serial.begin(115200);
 
-  setLuzVerde(1);
-  setLuzAmarilla(1);
-  setLuzRoja(1);
+  lcd.begin(16, 2);
+  lcd.backlight();
+
+  setLuzVerde(HIGH);
+  setLuzAmarilla(HIGH);
+  setLuzRoja(HIGH);
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("FOCUS METER: ");
+  lcd.print("FOCUS METER:");
   lcd.setCursor(0, 1);
   lcd.print("Sin datos...");
 
-
   delay(3000);
-
   apagarLeds();
 }
 
@@ -115,21 +119,21 @@ void loop() {
         int nivelAtencionActual;
 
         if (valor >= 80.0) {
-          setLuzVerde(1);
-          setLuzAmarilla(0);
-          setLuzRoja(0);
+          setLuzVerde(HIGH);
+          setLuzAmarilla(LOW);
+          setLuzRoja(LOW);
           nivelAtencionActual = ATENCION_ALTA;
 
         } else if (valor >= 70.0) {
-          setLuzVerde(0);
-          setLuzAmarilla(1);
-          setLuzRoja(0);
+          setLuzVerde(LOW);
+          setLuzAmarilla(HIGH);
+          setLuzRoja(LOW);
           nivelAtencionActual = ATENCION_MEDIA;
 
         } else {
-          setLuzVerde(0);
-          setLuzAmarilla(0);
-          setLuzRoja(1);
+          setLuzVerde(LOW);
+          setLuzAmarilla(LOW);
+          setLuzRoja(HIGH);
           nivelAtencionActual = ATENCION_BAJA;
         }
 
@@ -138,7 +142,7 @@ void loop() {
         lcd.print("Estimacion de");
         lcd.setCursor(0, 1);
         lcd.print("atencion: ");
-        lcd.print(valor, 2);
+        lcd.print(valor, 1);
         lcd.print("%");
 
         if (nivelAtencionActual != nivelAtencionAnterior) {
@@ -153,7 +157,7 @@ void loop() {
     apagarLeds();
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("FOCUS METER: ");
+    lcd.print("FOCUS METER:");
     lcd.setCursor(0, 1);
     lcd.print("Sin datos...");
     datoValido = false;
