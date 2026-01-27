@@ -15,8 +15,9 @@ FASTAPI_HOST = os.getenv("FOCUSMETER_FASTAPI_HOST", "0.0.0.0")
 FASTAPI_PORT = int(os.getenv("FOCUSMETER_FASTAPI_PORT", "8000"))
 STREAMING_PORT = int(os.getenv("FOCUSMETER_STREAMING_PORT", "5500"))
 
-DELAY_AFTER_FASTAPI = float(os.getenv("FOCUSMETER_DELAY_FASTAPI", "3.0"))
-DELAY_AFTER_STREAMING = float(os.getenv("FOCUSMETER_DELAY_STREAMING", "1.5"))
+DELAY_AFTER_FASTAPI = float(os.getenv("FOCUSMETER_DELAY_FASTAPI", "7.0"))
+DELAY_AFTER_STREAMING = float(os.getenv("FOCUSMETER_DELAY_STREAMING", "5.0"))
+DELAY_BEFORE_STREAMLIT = float(os.getenv("FOCUSMETER_DELAY_STREAMLIT", "3.0"))
 
 NEW_CONSOLE = os.getenv("FOCUSMETER_NEW_CONSOLE", "0") == "1"
 
@@ -107,13 +108,13 @@ def main():
         sys.executable, "-m", "streamlit",
         "run", "main_streamlit_app.py",
     ]
+    time.sleep(DELAY_BEFORE_STREAMLIT)
     procs.append(start_service("STREAMLIT", streamlit_cmd, APP_DIR))
 
     print("\n🚀 Todo levantado.")
     print(f"   - FastAPI:    http://{FASTAPI_HOST}:{FASTAPI_PORT}")
     print(f"   - HTML/JS:    http://localhost:{STREAMING_PORT}")
     print("   - Streamlit:  revisa la URL que imprime Streamlit en consola\n")
-
 
     try:
         while True:
